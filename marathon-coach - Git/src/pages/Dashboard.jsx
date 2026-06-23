@@ -131,6 +131,37 @@ const s = {
     borderRadius: 'var(--radius)', fontSize: 13, lineHeight: 1.7,
     color: 'var(--text)', resize: 'vertical', outline: 'none', fontFamily: 'var(--font)',
   },
+  // Strength training
+  strengthToggleWrap: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
+  strengthToggleTrack: (on) => ({
+    width: 38, height: 22, borderRadius: 999, position: 'relative', cursor: 'pointer',
+    background: on ? 'var(--accent)' : 'var(--border)', border: 'none', padding: 0, flexShrink: 0,
+    transition: 'background 0.15s',
+  }),
+  strengthToggleDot: (on) => ({
+    position: 'absolute', top: 2, left: on ? 18 : 2, width: 18, height: 18, borderRadius: '50%',
+    background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+  }),
+  strengthToggleLabel: { fontSize: 13, fontWeight: 500, color: 'var(--text-2)', cursor: 'pointer', userSelect: 'none' },
+  strengthSection: { marginBottom: 14 },
+  strengthSectionLabel: {
+    fontSize: 12, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase',
+    letterSpacing: '0.4px', marginBottom: 8,
+  },
+  strengthGrid: {
+    display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+    border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden',
+  },
+  strengthCell: { borderRight: '1px solid var(--border)', background: 'var(--surface)' },
+  strengthDayHeader: {
+    padding: '6px 4px', fontSize: 11, fontWeight: 500, textAlign: 'center',
+    background: 'var(--surface-2)', color: 'var(--text-3)', borderBottom: '1px solid var(--border)',
+    textTransform: 'uppercase', letterSpacing: '0.3px',
+  },
+  strengthInput: {
+    width: '100%', minHeight: 92, border: 'none', padding: '8px 8px', fontSize: 11.5, lineHeight: 1.45,
+    background: 'transparent', color: 'var(--text)', resize: 'vertical', outline: 'none', fontFamily: 'var(--font)',
+  },
   btnRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' },
   saveBtn: {
     padding: '8px 16px', background: 'var(--accent)', color: 'var(--accent-fg)',
@@ -198,19 +229,27 @@ function buildCalendar(year, month) {
 
 // Day data: { miles, pace, notes }
 function parsePlan(raw) {
-  if (!raw) return { days: {}, notes: '', glossary: DEFAULT_GLOSSARY }
+  if (!raw) return { days: {}, notes: '', glossary: DEFAULT_GLOSSARY, strengthEnabled: false, strengthDays: {} }
   try {
     const p = JSON.parse(raw)
     if (p && typeof p === 'object' && 'days' in p) {
-      return { days: p.days || {}, notes: p.notes || '', glossary: p.glossary || DEFAULT_GLOSSARY }
+      return {
+        days: p.days || {},
+        notes: p.notes || '',
+        glossary: p.glossary || DEFAULT_GLOSSARY,
+        strengthEnabled: p.strengthEnabled || false,
+        strengthDays: p.strengthDays || {},
+      }
     }
   } catch {}
-  return { days: {}, notes: raw, glossary: DEFAULT_GLOSSARY }
+  return { days: {}, notes: raw, glossary: DEFAULT_GLOSSARY, strengthEnabled: false, strengthDays: {} }
 }
-function serializePlan(days, notes, glossary) { return JSON.stringify({ days, notes, glossary }) }
+function serializePlan(days, notes, glossary, strengthEnabled, strengthDays) {
+  return JSON.stringify({ days, notes, glossary, strengthEnabled, strengthDays })
+}
 
 // ── PDF Export ───────────────────────────────────────────────────────────────
-function exportPDF(client, days, notes, glossary, year, month) {
+function exportPDF(client, days, notes, glossary, year, month, strengthEnabled, strengthDays) {
   const monthName = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const cells = buildCalendar(year, month)
   const dowHeaders = DOW.map(d => `<th>${d}</th>`).join('')
@@ -293,6 +332,7 @@ function exportPDF(client, days, notes, glossary, year, month) {
 <div class="profile-row">
   ${client.goal_race ? `<div><div class="pi-label">Goal race</div><div class="pi-val">${client.goal_race}</div></div>` : ''}
   ${client.race_date ? `<div><div class="pi-label">Race date</div><div class="pi-val">${fmtDate(client.race_date)}</div></div>` : ''}
+  ${client.race_date ? `<div><div class="pi-label">Weeks to race</div><div class="pi-val">${weeksUntil(client.race_date)} wks</div></div>` : ''}
   ${client.experience ? `<div><div class="pi-label">Experience</div><div class="pi-val">${client.experience}</div></div>` : ''}
   ${client.weekly_mileage ? `<div><div class="pi-label">Base mileage</div><div class="pi-val">${client.weekly_mileage} mi/wk</div></div>` : ''}
 </div>
@@ -302,6 +342,11 @@ function exportPDF(client, days, notes, glossary, year, month) {
   <thead><tr>${dowHeaders}</tr></thead>
   <tbody>${weeks.join('')}</tbody>
 </table>
+${strengthEnabled ? `<div class="notes-label">Weekly strength plan (same every week)</div>
+<table style="margin-bottom:14px;">
+  <thead><tr>${dowHeaders}</tr></thead>
+  <tbody><tr>${DOW.map(d => `<td style="height:54px;font-size:11px;line-height:1.4;">${(strengthDays[d] || '').replace(/\n/g, '<br/>')}</td>`).join('')}</tr></tbody>
+</table>` : ''}
 ${notes ? `<div class="notes-label">Coach notes</div><div class="notes-box">${notes.replace(/\n/g, '<br/>')}</div>` : ''}
 <script>window.onload = function() { window.print(); }<\/script>
 </body>
@@ -352,6 +397,8 @@ export default function Dashboard({ session }) {
   const [profileDraft, setProfileDraft] = useState({})
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSavedMsg, setProfileSavedMsg] = useState(false)
+  const [strengthEnabled, setStrengthEnabled] = useState(false)
+  const [strengthDays, setStrengthDays] = useState({})
 
   const viewYear  = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1).getFullYear()
   const viewMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1).getMonth()
@@ -400,6 +447,8 @@ export default function Dashboard({ session }) {
     setDays(p.days)
     setNotes(p.notes)
     setGlossary(p.glossary || DEFAULT_GLOSSARY)
+    setStrengthEnabled(p.strengthEnabled)
+    setStrengthDays(p.strengthDays)
     setWeeklyTotals([])
     setSavedMsg(false)
     setEditingProfile(false)
@@ -408,6 +457,16 @@ export default function Dashboard({ session }) {
 
   function setDayField(key, field, value) {
     setDays(d => ({ ...d, [key]: { ...(d[key] || {}), [field]: value } }))
+    setSavedMsg(false)
+  }
+
+  function setStrengthDayField(day, value) {
+    setStrengthDays(d => ({ ...d, [day]: value }))
+    setSavedMsg(false)
+  }
+
+  function toggleStrengthTraining() {
+    setStrengthEnabled(en => !en)
     setSavedMsg(false)
   }
 
@@ -443,7 +502,7 @@ export default function Dashboard({ session }) {
   async function savePlan() {
     if (!selected) return
     setSaving(true)
-    const { error } = await supabase.from('clients').update({ training_plan: serializePlan(days, notes, glossary) }).eq('id', selected.id)
+    const { error } = await supabase.from('clients').update({ training_plan: serializePlan(days, notes, glossary, strengthEnabled, strengthDays) }).eq('id', selected.id)
     setSaving(false)
     if (!error) { setSavedMsg(true); setTimeout(() => setSavedMsg(false), 2500); fetchClients() }
   }
@@ -481,6 +540,7 @@ export default function Dashboard({ session }) {
         .nav-btn:hover, .edit-toggle-btn:hover { border-color: var(--border-strong) !important; }
         .ai-btn:hover, .export-btn:hover { border-color: var(--border-strong) !important; color: var(--text) !important; }
         .cal-input:focus, .cal-select:focus, .cal-notes:focus { background: rgba(0,0,0,0.02) !important; outline: none; }
+        .strength-input:focus { background: rgba(0,0,0,0.02) !important; outline: none; }
         .profile-input:focus, .profile-select:focus, .glossary-input:focus { border-color: var(--border-strong) !important; box-shadow: 0 0 0 2px rgba(26,24,20,0.05); }
         .cal-select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; padding-right: 16px !important; }
       `}</style>
@@ -556,6 +616,7 @@ export default function Dashboard({ session }) {
                         ['Weekly mileage', selected.weekly_mileage ? `${selected.weekly_mileage} mi` : '—'],
                         ['Goal race', selected.goal_race || '—'],
                         ['Race date', fmtDate(selected.race_date)],
+                        ['Weeks to race', selected.race_date ? `${weeksUntil(selected.race_date)} wks` : '—'],
                       ].map(([label, val]) => (
                         <div key={label} style={s.profileItem}>
                           <span style={s.profileLabel}>{label}</span>
@@ -688,6 +749,20 @@ export default function Dashboard({ session }) {
                   </div>
                 </div>
 
+                <div style={s.strengthToggleWrap}>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={strengthEnabled}
+                    className="strength-toggle-track"
+                    onClick={toggleStrengthTraining}
+                    style={s.strengthToggleTrack(strengthEnabled)}
+                  >
+                    <span style={s.strengthToggleDot(strengthEnabled)} />
+                  </button>
+                  <span style={s.strengthToggleLabel} onClick={toggleStrengthTraining}>Strength Training</span>
+                </div>
+
                 <div style={s.calGrid}>
                   {DOW.map(d => <div key={d} style={s.dayOfWeekHeader}>{d}</div>)}
                   {calCells.map((cell) => {
@@ -736,6 +811,29 @@ export default function Dashboard({ session }) {
                   })}
                 </div>
 
+                {/* Strength training — one row, repeats every week */}
+                {strengthEnabled && (
+                  <div style={s.strengthSection}>
+                    <div style={s.strengthSectionLabel}>
+                      Weekly strength plan <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— same every week</span>
+                    </div>
+                    <div style={s.strengthGrid}>
+                      {DOW.map(d => (
+                        <div key={d} style={s.strengthCell}>
+                          <div style={s.strengthDayHeader}>{d}</div>
+                          <textarea
+                            className="strength-input"
+                            placeholder="—"
+                            value={strengthDays[d] || ''}
+                            onChange={e => setStrengthDayField(d, e.target.value)}
+                            style={s.strengthInput}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Weekly mileage totals */}
                 {weeklyTotals.length > 0 && (
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -761,7 +859,7 @@ export default function Dashboard({ session }) {
                   <button className="ai-btn" style={s.aiBtn} onClick={buildPlan}>
                     ⚙ Build month
                   </button>
-                  <button className="export-btn" style={s.exportBtn} onClick={() => exportPDF(selected, days, notes, glossary, viewYear, viewMonth)}>
+                  <button className="export-btn" style={s.exportBtn} onClick={() => exportPDF(selected, days, notes, glossary, viewYear, viewMonth, strengthEnabled, strengthDays)}>
                     ↓ Export PDF
                   </button>
                   {savedMsg && <span style={s.savedMsg}>✓ Saved!</span>}
