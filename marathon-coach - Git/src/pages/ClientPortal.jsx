@@ -26,6 +26,7 @@ const styles = {
   waitingIcon: { fontSize: 36, marginBottom: 14 },
   waitingTitle: { fontSize: 18, fontWeight: 500, marginBottom: 8 },
   waitingText: { fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, maxWidth: 420, margin: '0 auto' },
+  monthNotReady: { textAlign: 'center', padding: '40px 20px', background: 'var(--surface-2)', borderRadius: 'var(--radius)', marginBottom: 20 },
   monthNav: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 },
   navBtn: { fontSize: 13, color: 'var(--text-2)', padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' },
   monthLabel: { fontSize: 15, fontWeight: 500, minWidth: 140, textAlign: 'center' },
@@ -203,6 +204,11 @@ function PlanView({ client, onSignOut }) {
 
   const usedPaceTypes = Array.from(new Set(Object.values(days).map(d => d?.pace).filter(Boolean)))
 
+  const monthHasData = dayKeys.some(k => {
+    const d = new Date(k + 'T00:00:00')
+    return d.getFullYear() === viewYear && d.getMonth() === viewMonth
+  })
+
   return (
     <div style={styles.page}>
       <div style={styles.wideCard}>
@@ -220,38 +226,48 @@ function PlanView({ client, onSignOut }) {
           <button style={styles.navBtn} onClick={() => changeMonth(1)}>Next →</button>
         </div>
 
-        <div style={styles.calGrid}>
-          {DOW.map(d => <div key={d} style={styles.dayOfWeekHeader}>{d}</div>)}
-          {calCells.map(cell => {
-            const day = days[cell.key] || {}
-            const isToday = cell.key === todayKey
-            return (
-              <div key={cell.key} style={styles.calCell(isToday, cell.isCurrentMonth)}>
-                <div style={styles.calCellHeader(isToday)}>{cell.date.getDate()}</div>
-                {cell.isCurrentMonth && (day.miles || day.pace || day.notes) && (
-                  <>
-                    {(day.miles || day.pace) && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        {day.miles ? <span style={styles.milesText}>{day.miles} mi</span> : null}
-                        {day.pace ? <span style={styles.paceBadge(day.pace)}>{PACE_LABELS[day.pace] || day.pace}</span> : null}
-                      </div>
+        {monthHasData ? (
+          <>
+            <div style={styles.calGrid}>
+              {DOW.map(d => <div key={d} style={styles.dayOfWeekHeader}>{d}</div>)}
+              {calCells.map(cell => {
+                const day = days[cell.key] || {}
+                const isToday = cell.key === todayKey
+                return (
+                  <div key={cell.key} style={styles.calCell(isToday, cell.isCurrentMonth)}>
+                    <div style={styles.calCellHeader(isToday)}>{cell.date.getDate()}</div>
+                    {cell.isCurrentMonth && (day.miles || day.pace || day.notes) && (
+                      <>
+                        {(day.miles || day.pace) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {day.miles ? <span style={styles.milesText}>{day.miles} mi</span> : null}
+                            {day.pace ? <span style={styles.paceBadge(day.pace)}>{PACE_LABELS[day.pace] || day.pace}</span> : null}
+                          </div>
+                        )}
+                        {day.notes ? <div style={styles.dayNotes}>{day.notes}</div> : null}
+                      </>
                     )}
-                    {day.notes ? <div style={styles.dayNotes}>{day.notes}</div> : null}
-                  </>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                  </div>
+                )
+              })}
+            </div>
 
-        {weeklyTotals.length > 0 && (
-          <div style={styles.weeklyTotals}>
-            {weeklyTotals.map((total, i) => (
-              <div key={i} style={styles.weeklyTotalCard}>
-                <div style={{ fontSize: 16, fontWeight: 500 }}>{total} mi</div>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.3px', marginTop: 2 }}>Week {i + 1}</div>
+            {weeklyTotals.length > 0 && (
+              <div style={styles.weeklyTotals}>
+                {weeklyTotals.map((total, i) => (
+                  <div key={i} style={styles.weeklyTotalCard}>
+                    <div style={{ fontSize: 16, fontWeight: 500 }}>{total} mi</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.3px', marginTop: 2 }}>Week {i + 1}</div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+          </>
+        ) : (
+          <div style={styles.monthNotReady}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>🗓️</div>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>{fmtMonth(viewYear, viewMonth)} isn't ready yet</div>
+            <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Your coach hasn't built this month's plan. Check back soon, or look at a different month above.</div>
           </div>
         )}
 
