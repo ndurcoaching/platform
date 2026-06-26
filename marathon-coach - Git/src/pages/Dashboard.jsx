@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { buildMonthPlan } from '../lib/planBuilder'
 import { DEFAULT_GENERAL_PREFS, DEFAULT_RACE_PREFS, getMergedPrefs, RACE_LABELS } from '../lib/defaultPrefs'
+import { DOW, PACE_TYPES, PACE_LABELS, DEFAULT_GLOSSARY, toKey, buildCalendar, parsePlan, serializePlan } from '../lib/plan'
 import { supabase } from '../supabase'
 
 const s = {
@@ -187,15 +188,6 @@ const s = {
 }
 
 const COLORS = ['#5b7fa6', '#7a6fa6', '#6fa68a', '#a67a6f', '#a69d6f', '#6f8ea6']
-const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const PACE_TYPES = ['', 'easy', 'tempo', 'race', 'fartlek', 'intervals', 'recovery', 'long', 'walk']
-const PACE_LABELS = { '': '— type', easy: 'Easy', tempo: 'Tempo', race: 'Race pace', fartlek: 'Fartlek', intervals: 'Intervals', recovery: 'Recovery', long: 'Long run', walk: 'Walk/Run' }
-
-const DEFAULT_GLOSSARY = {
-  easy: 'Conversational pace. You should be able to speak in full sentences. Typically 60–90 seconds per mile slower than race pace.',
-  tempo: 'Comfortably hard. You can speak in short phrases only. Roughly 25–30 seconds per mile slower than 10K race pace.',
-  race: 'Goal marathon pace. The pace you plan to run on race day based on your target finish time.',
-}
 
 function avatarColor(name) {
   let hash = 0
@@ -214,40 +206,6 @@ function weeksUntil(dateStr) {
   const diff = new Date(dateStr + 'T00:00:00') - new Date()
   return Math.max(4, Math.round(diff / (7 * 24 * 60 * 60 * 1000)))
 }
-function toKey(date) { return date.toISOString().slice(0, 10) }
-
-function buildCalendar(year, month) {
-  const first = new Date(year, month, 1)
-  let startDow = (first.getDay() + 6) % 7
-  const cells = []
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(year, month, 1 - startDow + i)
-    cells.push({ date: d, key: toKey(d), isCurrentMonth: d.getMonth() === month })
-  }
-  return cells
-}
-
-// Day data: { miles, pace, notes }
-function parsePlan(raw) {
-  if (!raw) return { days: {}, notes: '', glossary: DEFAULT_GLOSSARY, strengthEnabled: false, strengthDays: {} }
-  try {
-    const p = JSON.parse(raw)
-    if (p && typeof p === 'object' && 'days' in p) {
-      return {
-        days: p.days || {},
-        notes: p.notes || '',
-        glossary: p.glossary || DEFAULT_GLOSSARY,
-        strengthEnabled: p.strengthEnabled || false,
-        strengthDays: p.strengthDays || {},
-      }
-    }
-  } catch {}
-  return { days: {}, notes: raw, glossary: DEFAULT_GLOSSARY, strengthEnabled: false, strengthDays: {} }
-}
-function serializePlan(days, notes, glossary, strengthEnabled, strengthDays) {
-  return JSON.stringify({ days, notes, glossary, strengthEnabled, strengthDays })
-}
-
 // ── PDF Export ───────────────────────────────────────────────────────────────
 function exportPDF(client, days, notes, glossary, year, month, strengthEnabled, strengthDays) {
   const monthName = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })

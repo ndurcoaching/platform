@@ -82,6 +82,9 @@ export default function IntakeForm() {
           <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>You're all set, {form.name.split(' ')[0]}!</div>
           <div style={{ fontSize: 14, color: 'var(--text-2)' }}>Your coach will review your details and be in touch shortly.</div>
         </div>
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-2)' }}>
+          Once your coach has built your plan, you can view it any time at <a href="#/portal" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>your training portal</a>.
+        </p>
       </div>
     </div>
   )
@@ -233,6 +236,9 @@ export default function IntakeForm() {
           </button>
         </form>
 
+        <p style={styles.coachLink}>
+          Already submitted? <a href="#/portal" style={{ color: 'var(--text-2)', textDecoration: 'underline' }}>View your training plan →</a>
+        </p>
         <p style={styles.coachLink}>
           Are you the coach? <a href="#/coach" style={{ color: 'var(--text-2)', textDecoration: 'underline' }}>Go to dashboard →</a>
         </p>

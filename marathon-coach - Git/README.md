@@ -9,6 +9,7 @@ A secure athlete intake form + coach dashboard with AI-powered training plan gen
 | URL | Who sees it | What it does |
 |-----|-------------|--------------|
 | `yoursite.com/` | Clients | Intake form — submits to your database |
+| `yoursite.com/#/portal` | Clients | Training portal — clients sign up/log in and view their plan once you've saved it. Shows "your coach is still working on it" until then. |
 | `yoursite.com/#/coach` | You only | Dashboard — view clients, generate plans |
 
 ---
@@ -22,18 +23,20 @@ A secure athlete intake form + coach dashboard with AI-powered training plan gen
 3. Choose a strong database password and save it
 4. Wait ~2 minutes for the project to spin up
 
-### Step 2 — Create the database table
-
-1. In your Supabase project, go to **SQL Editor → New query**
-2. Paste the entire contents of `supabase-setup.sql`
-3. Click **Run** — you should see "Success"
-
-### Step 3 — Create your coach account
+### Step 2 — Create your coach account
 
 1. Go to **Authentication → Users** in Supabase
 2. Click **Add user → Create new user**
 3. Enter your email and a strong password
 4. This is what you'll use to log into the dashboard
+
+### Step 3 — Create the database table
+
+1. In your Supabase project, go to **SQL Editor → New query**
+2. Paste the entire contents of `supabase-setup.sql`
+3. Before running it, find the line near the bottom that says `'YOUR_COACH_EMAIL_HERE'` and replace it with the email you created in Step 2
+4. Click **Run** — you should see "Success"
+5. Go to **Authentication → Providers → Email** and confirm **Confirm email** is turned ON. This makes sure a client has to prove they own an email address before they can sign up with it.
 
 ### Step 4 — Get your API keys
 

@@ -4,11 +4,13 @@ import IntakeForm from './pages/IntakeForm'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Preferences from './pages/Preferences'
+import ClientPortal from './pages/ClientPortal'
 
 function getRoute() {
   const hash = window.location.hash
   if (hash.startsWith('#/coach/preferences')) return 'preferences'
   if (hash.startsWith('#/coach')) return 'coach'
+  if (hash.startsWith('#/portal')) return 'portal'
   return 'intake'
 }
 
@@ -35,6 +37,7 @@ export default function App() {
   )
 
   if (route === 'intake') return <IntakeForm />
+  if (route === 'portal') return <ClientPortal />
   if (route === 'coach' || route === 'preferences') {
     if (!session) return <Login />
     if (route === 'preferences') return <Preferences session={session} onBack={() => { window.location.hash = '#/coach'; setRoute('coach') }} />

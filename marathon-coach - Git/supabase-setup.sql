@@ -96,3 +96,62 @@ alter table clients
 -- ============================================
 alter table clients
   add column if not exists race_type text default 'full';
+
+-- ============================================
+-- UPDATE: Client portal support
+-- Run this once you add client login/signup.
+--
+-- IMPORTANT: clients now get real Supabase Auth accounts
+-- (they sign up at yoursite.com/#/portal). That means the
+-- old "Coaches can read clients" policy below — which only
+-- checked `auth.role() = 'authenticated'` — would let ANY
+-- logged-in client read every other client's row, not just
+-- their own. This block fixes that by introducing an
+-- explicit "coaches" allowlist and tightening those policies.
+-- ============================================
+
+-- 1. Allowlist of coach accounts. Locked down by default —
+--    only editable from the SQL editor (no public policies),
+--    same as how you create your own coach login today.
+create table if not exists coaches (
+  user_id uuid primary key references auth.users(id)
+);
+alter table coaches enable row level security;
+
+-- Add yourself as a coach (run once per coach account).
+-- Replace with your actual coach email — the one you use
+-- to log into yoursite.com/#/coach.
+insert into coaches (user_id)
+select id from auth.users where email = 'YOUR_COACH_EMAIL_HERE'
+on conflict do nothing;
+
+-- 2. Re-point the coach policies at the allowlist instead of
+--    "any authenticated user."
+drop policy if exists "Coaches can read clients" on clients;
+create policy "Coaches can read clients"
+  on clients for select
+  using (auth.uid() in (select user_id from coaches));
+
+drop policy if exists "Coaches can update clients" on clients;
+create policy "Coaches can update clients"
+  on clients for update
+  using (auth.uid() in (select user_id from coaches));
+
+drop policy if exists "Coaches can delete clients" on clients;
+create policy "Coaches can delete clients"
+  on clients for delete
+  using (auth.uid() in (select user_id from coaches));
+
+-- 3. Let a logged-in client read ONLY their own row, matched
+--    by the email on their auth account. This is a separate,
+--    additive policy — it doesn't grant access to anyone else's row.
+create policy "Clients can view own record"
+  on clients for select
+  using (lower(auth.jwt() ->> 'email') = lower(email));
+
+-- ============================================
+-- DONE. Next: in Supabase, go to Authentication > Providers >
+-- Email and confirm "Confirm email" is ON, so a client must
+-- prove they own an email address before they can sign up
+-- with it.
+-- ============================================
