@@ -30,6 +30,10 @@ const styles = {
   successBox: { background: 'var(--green-bg)', border: '1px solid #b8dcb6', borderRadius: 'var(--radius)', padding: '20px 24px', textAlign: 'center' },
   errorBox: { background: 'var(--red-bg)', border: '1px solid #f0b8b8', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 13, color: 'var(--red-text)', marginTop: 12 },
   coachLink: { textAlign: 'center', marginTop: 28, fontSize: 13, color: 'var(--text-3)' },
+  notice: { background: 'var(--green-bg)', border: '1px solid #b8dcb6', borderRadius: 'var(--radius-sm)', padding: '14px 16px', fontSize: 13, color: 'var(--green-text)', marginTop: 4, lineHeight: 1.6 },
+  accountTitle: { fontSize: 17, fontWeight: 500, marginBottom: 6 },
+  accountSubtitle: { fontSize: 13, color: 'var(--text-2)', marginBottom: 18, lineHeight: 1.6 },
+  readOnlyInput: { opacity: 0.65, cursor: 'not-allowed' },
 }
 
 const EMPTY = {
@@ -46,7 +50,23 @@ export default function IntakeForm() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
+  const [password, setPassword] = useState('')
+  const [accountLoading, setAccountLoading] = useState(false)
+  const [accountError, setAccountError] = useState('')
+  const [accountCreated, setAccountCreated] = useState(false)
+
   function set(field, value) { setForm(f => ({ ...f, [field]: value })) }
+
+  async function handleCreateAccount(e) {
+    e.preventDefault()
+    if (password.length < 6) { setAccountError('Password must be at least 6 characters.'); return }
+    setAccountError('')
+    setAccountLoading(true)
+    const { error: err } = await supabase.auth.signUp({ email: form.email.trim(), password })
+    setAccountLoading(false)
+    if (err) setAccountError(err.message)
+    else setAccountCreated(true)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -82,9 +102,36 @@ export default function IntakeForm() {
           <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>You're all set, {form.name.split(' ')[0]}!</div>
           <div style={{ fontSize: 14, color: 'var(--text-2)' }}>Your coach will review your details and be in touch shortly.</div>
         </div>
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-2)' }}>
-          Once your coach has built your plan, you can view it any time at <a href="#/portal" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>your training portal</a>.
-        </p>
+
+        <div style={styles.divider} />
+
+        {accountCreated ? (
+          <div style={styles.notice}>
+            <strong>Check your email.</strong> We sent a confirmation link to {form.email}. Click it, then come back and sign in at <a href="#/portal" style={{ color: 'var(--green-text)', textDecoration: 'underline' }}>your training portal</a> any time — your plan will be there once your coach has built it.
+          </div>
+        ) : (
+          <>
+            <div style={styles.accountTitle}>Create your portal account</div>
+            <p style={styles.accountSubtitle}>Set a password now so you're ready to sign in and view your plan the moment your coach has it built.</p>
+            <form onSubmit={handleCreateAccount}>
+              <div style={styles.group}>
+                <label style={styles.label}>Email</label>
+                <input type="email" value={form.email} readOnly style={styles.readOnlyInput} />
+              </div>
+              <div style={{ ...styles.group, marginTop: 14 }}>
+                <label style={styles.label}>Create a password</label>
+                <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} autoFocus />
+              </div>
+              {accountError && <div style={styles.errorBox}>{accountError}</div>}
+              <button type="submit" style={{ ...styles.submitBtn, opacity: accountLoading ? 0.6 : 1 }} disabled={accountLoading}>
+                {accountLoading ? 'Creating account…' : 'Create account →'}
+              </button>
+            </form>
+            <p style={styles.coachLink}>
+              Already have a portal account? <a href="#/portal" style={{ color: 'var(--text-2)', textDecoration: 'underline' }}>Sign in →</a>
+            </p>
+          </>
+        )}
       </div>
     </div>
   )

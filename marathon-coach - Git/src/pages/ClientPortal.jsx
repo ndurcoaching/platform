@@ -334,12 +334,23 @@ export default function ClientPortal() {
     let cancelled = false
     setClientLoading(true)
     setClientError(false)
-    supabase.from('clients').select('*').then(({ data, error }) => {
-      if (cancelled) return
-      setClientLoading(false)
-      if (error || !data || data.length === 0) setClientError(true)
-      else setClient(data[0])
-    })
+    // Only ever fetch the row matching the signed-in user's own email.
+    // Row Level Security on the `clients` table is the real security
+    // boundary (see supabase-setup.sql) — this filter is a belt-and-
+    // suspenders match so the portal can never show the wrong
+    // person's plan even if a policy is ever loosened by mistake.
+    supabase
+      .from('clients')
+      .select('*')
+      .ilike('email', session.user.email)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        setClientLoading(false)
+        if (error || !data || data.length === 0) setClientError(true)
+        else setClient(data[0])
+      })
     return () => { cancelled = true }
   }, [session])
 
