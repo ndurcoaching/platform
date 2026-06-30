@@ -408,11 +408,42 @@ export default function Dashboard({ session }) {
   useEffect(() => {
     if (!selected) { setStravaActivities([]); setStravaConnected(false); return }
     let cancelled = false
-    supabase.from('strava_activities').select('*').eq('client_id', selected.id)
-      .order('activity_date', { ascending: false }).limit(60)
-      .then(({ data }) => { if (!cancelled) setStravaActivities(data || []) })
-    supabase.from('strava_connections').select('client_id').eq('client_id', selected.id).maybeSingle()
-      .then(({ data }) => { if (!cancelled) setStravaConnected(!!data) })
+
+    async function syncAndLoad() {
+      // Check if this client has a Strava connection
+      const { data: conn } = await supabase
+        .from('strava_connections')
+        .select('client_id')
+        .eq('client_id', selected.id)
+        .maybeSingle()
+
+      if (cancelled) return
+      const connected = !!conn
+      setStravaConnected(connected)
+
+      if (!connected) { setStravaActivities([]); return }
+
+      // Sync fresh activities from Strava (handles token refresh automatically)
+      try {
+        await fetch(`/api/strava-sync?clientId=${selected.id}`)
+      } catch (e) {
+        console.error('strava-sync fetch failed', e)
+      }
+
+      if (cancelled) return
+
+      // Read the now-updated activities from Supabase
+      const { data } = await supabase
+        .from('strava_activities')
+        .select('*')
+        .eq('client_id', selected.id)
+        .order('activity_date', { ascending: false })
+        .limit(60)
+
+      if (!cancelled) setStravaActivities(data || [])
+    }
+
+    syncAndLoad()
     return () => { cancelled = true }
   }, [selected?.id])
 
