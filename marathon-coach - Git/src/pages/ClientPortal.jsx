@@ -1,24 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { DOW, PACE_LABELS, PACE_COLORS, PACE_BG, DEFAULT_GLOSSARY, toKey, buildCalendar, parsePlan } from '../lib/plan'
-
-// ── Responsive helper ─────────────────────────────────────────────────────────
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
-  )
-  useEffect(() => {
-    function onResize() { setIsMobile(window.innerWidth <= breakpoint) }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [breakpoint])
-  return isMobile
-}
+import { getStravaConnectUrl } from '../lib/strava'
 
 const styles = {
-  page: (isMobile) => ({ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: isMobile ? '20px 8px 60px' : '48px 16px 80px' }),
-  card: (isMobile) => ({ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: isMobile ? '24px 20px' : '40px', width: '100%', maxWidth: 420, boxShadow: 'var(--shadow)' }),
-  wideCard: (isMobile) => ({ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: isMobile ? '18px 12px' : '32px', width: '100%', maxWidth: 880, boxShadow: 'var(--shadow)' }),
+  page: { minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '48px 16px 80px' },
+  card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '40px', width: '100%', maxWidth: 420, boxShadow: 'var(--shadow)' },
+  wideCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '32px', width: '100%', maxWidth: 880, boxShadow: 'var(--shadow)' },
   logo: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 },
   logoMark: { width: 36, height: 36, borderRadius: 8, background: '#0a5fd4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-fg)', fontWeight: 500, fontSize: 15, letterSpacing: '-0.5px' },
   logoText: { fontSize: 16, fontWeight: 500, letterSpacing: '-0.3px' },
@@ -30,33 +18,37 @@ const styles = {
   ghostBtn: { width: '100%', padding: '11px 20px', background: 'var(--surface-2)', color: 'var(--text)', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, marginTop: 8, border: '1px solid var(--border)' },
   error: { background: 'var(--red-bg)', border: '1px solid #f0b8b8', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 13, color: 'var(--red-text)', marginTop: 12 },
   notice: { background: 'var(--green-bg)', border: '1px solid #b8dcb6', borderRadius: 'var(--radius-sm)', padding: '14px 16px', fontSize: 13, color: 'var(--green-text)', marginTop: 4, lineHeight: 1.6 },
+  stravaBanner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 20 },
+  stravaText: { fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 },
+  stravaBtn: { flexShrink: 0, padding: '8px 14px', background: '#fc4c02', color: '#fff', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap' },
+  stravaConnectedBadge: { flexShrink: 0, fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 999, background: 'var(--green-bg)', color: 'var(--green-text)' },
   toggleRow: { display: 'flex', gap: 4, background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: 3, marginBottom: 24 },
   toggleBtn: (active) => ({ flex: 1, padding: '8px 12px', borderRadius: 5, fontSize: 13, fontWeight: 500, background: active ? 'var(--surface)' : 'transparent', color: active ? 'var(--text)' : 'var(--text-3)', boxShadow: active ? 'var(--shadow)' : 'none' }),
   backLink: { textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--text-3)' },
-  topbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 8 },
+  topbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 },
   signOutBtn: { fontSize: 13, color: 'var(--text-2)', textDecoration: 'underline' },
   waitingBox: { textAlign: 'center', padding: '48px 24px' },
   waitingIcon: { fontSize: 36, marginBottom: 14 },
   waitingTitle: { fontSize: 18, fontWeight: 500, marginBottom: 8 },
   waitingText: { fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, maxWidth: 420, margin: '0 auto' },
   monthNotReady: { textAlign: 'center', padding: '40px 20px', background: 'var(--surface-2)', borderRadius: 'var(--radius)', marginBottom: 20 },
-  monthNav: (isMobile) => ({ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, marginBottom: 18, justifyContent: isMobile ? 'space-between' : 'flex-start' }),
+  monthNav: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 },
   navBtn: { fontSize: 13, color: 'var(--text-2)', padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' },
-  monthLabel: (isMobile) => ({ fontSize: 15, fontWeight: 500, minWidth: isMobile ? 0 : 140, textAlign: 'center' }),
-  calGrid: (isMobile) => ({ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: isMobile ? 2 : 4, marginBottom: 20 }),
-  dayOfWeekHeader: (isMobile) => ({ fontSize: isMobile ? 9 : 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: 'center', padding: '4px 0' }),
-  calCell: (isToday, inMonth, isMobile) => ({
-    minHeight: isMobile ? 58 : 76, borderRadius: 'var(--radius-sm)', border: isToday ? '1px solid var(--accent)' : '1px solid var(--border)',
-    background: inMonth ? 'var(--surface)' : 'var(--surface-2)', opacity: inMonth ? 1 : 0.45, padding: isMobile ? '3px 3px' : '5px 6px', display: 'flex', flexDirection: 'column', gap: isMobile ? 2 : 3, overflow: 'hidden',
+  monthLabel: { fontSize: 15, fontWeight: 500, minWidth: 140, textAlign: 'center' },
+  calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 20 },
+  dayOfWeekHeader: { fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: 'center', padding: '4px 0' },
+  calCell: (isToday, inMonth) => ({
+    minHeight: 76, borderRadius: 'var(--radius-sm)', border: isToday ? '1px solid var(--accent)' : '1px solid var(--border)',
+    background: inMonth ? 'var(--surface)' : 'var(--surface-2)', opacity: inMonth ? 1 : 0.45, padding: '5px 6px', display: 'flex', flexDirection: 'column', gap: 3,
   }),
-  calCellHeader: (isToday, isMobile) => ({ fontSize: isMobile ? 10 : 11, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--accent)' : 'var(--text-3)' }),
-  paceBadge: (pace, isMobile) => ({ fontSize: isMobile ? 8 : 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px', padding: isMobile ? '1px 3px' : '1px 5px', borderRadius: 3, background: PACE_BG[pace] || 'var(--surface-2)', color: PACE_COLORS[pace] || 'var(--text-3)', display: 'inline-block', width: 'fit-content' }),
-  milesText: (isMobile) => ({ fontSize: isMobile ? 10 : 12, fontWeight: 500 }),
-  dayNotes: (isMobile) => ({ fontSize: isMobile ? 8 : 10, color: 'var(--text-2)', lineHeight: 1.3, wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }),
+  calCellHeader: (isToday) => ({ fontSize: 11, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--accent)' : 'var(--text-3)' }),
+  paceBadge: (pace) => ({ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px', padding: '1px 5px', borderRadius: 3, background: PACE_BG[pace] || 'var(--surface-2)', color: PACE_COLORS[pace] || 'var(--text-3)', display: 'inline-block', width: 'fit-content' }),
+  milesText: { fontSize: 12, fontWeight: 500 },
+  dayNotes: { fontSize: 10, color: 'var(--text-2)', lineHeight: 1.4, wordBreak: 'break-word' },
   sectionTitle: { fontSize: 12, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 },
   weeklyTotals: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 },
-  weeklyTotalCard: (isMobile) => ({ flex: 1, minWidth: isMobile ? 72 : 100, background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '6px 8px' : '8px 12px', textAlign: 'center' }),
-  strengthGrid: (isMobile) => ({ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(7, 1fr)', gap: 6, marginBottom: 20 }),
+  weeklyTotalCard: { flex: 1, minWidth: 100, background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', textAlign: 'center' },
+  strengthGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 20 },
   strengthCell: { border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px', minHeight: 60 },
   strengthDayHeader: { fontSize: 10, fontWeight: 600, color: 'var(--text-3)', marginBottom: 4 },
   strengthText: { fontSize: 11, color: 'var(--text-2)', lineHeight: 1.4, whiteSpace: 'pre-wrap' },
@@ -72,7 +64,6 @@ function fmtMonth(year, month) {
 
 // ── Auth screen (sign in or create an account) ────────────────────────────────
 function AuthScreen() {
-  const isMobile = useIsMobile()
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -100,8 +91,8 @@ function AuthScreen() {
   }
 
   if (signedUp) return (
-    <div style={styles.page(isMobile)}>
-      <div style={styles.card(isMobile)}>
+    <div style={styles.page}>
+      <div style={styles.card}>
         <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
         <div style={styles.notice}>
           <strong>Check your email.</strong> We sent a confirmation link to {email}. Click it, then come back here and sign in.
@@ -114,8 +105,8 @@ function AuthScreen() {
   )
 
   return (
-    <div style={styles.page(isMobile)}>
-      <div style={styles.card(isMobile)}>
+    <div style={styles.page}>
+      <div style={styles.card}>
         <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
         <h1 style={styles.title}>Your training portal</h1>
         <p style={styles.subtitle}>Sign in to view your training plan. Use the same email you submitted on your intake form.</p>
@@ -147,16 +138,51 @@ function AuthScreen() {
   )
 }
 
-// ── "Your coach is still working on it" screen ────────────────────────────────
-function WaitingScreen({ onSignOut, name }) {
-  const isMobile = useIsMobile()
+// ── Strava connect banner — shared between the waiting screen and plan view ──
+function StravaConnect({ clientId }) {
+  const [connected, setConnected] = useState(false)
+  const [flash, setFlash] = useState(
+    window.location.hash.includes('strava=connected') ? 'connected'
+      : window.location.hash.includes('strava=error') ? 'error'
+      : null
+  )
+
+  useEffect(() => {
+    if (flash) window.history.replaceState(null, '', window.location.pathname + '#/portal')
+    fetch(`/api/strava-status?client_id=${clientId}`)
+      .then(r => r.json())
+      .then(d => setConnected(!!d.connected))
+      .catch(() => {})
+  }, [clientId])
+
   return (
-    <div style={styles.page(isMobile)}>
-      <div style={styles.card(isMobile)}>
+    <>
+      {flash === 'connected' && <div style={{ ...styles.notice, marginBottom: 16 }}>✓ Strava connected — your coach can now see your actual runs.</div>}
+      {flash === 'error' && <div style={{ ...styles.error, marginBottom: 16, marginTop: 0 }}>Something went wrong connecting Strava. Please try again.</div>}
+      <div style={styles.stravaBanner}>
+        {connected ? (
+          <span style={styles.stravaConnectedBadge}>● Connected to Strava</span>
+        ) : (
+          <>
+            <span style={styles.stravaText}>Connect Strava so your coach can see your actual runs — your plan adjusts based on real training, not just check-ins.</span>
+            <a href={getStravaConnectUrl(clientId)} style={styles.stravaBtn}>Connect Strava</a>
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ── "Your coach is still working on it" screen ────────────────────────────────
+function WaitingScreen({ onSignOut, name, clientId }) {
+  return (
+    <div style={styles.page}>
+      <div style={styles.card}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
         </div>
+        <StravaConnect clientId={clientId} />
         <div style={styles.waitingBox}>
           <div style={styles.waitingIcon}>🏃</div>
           <div style={styles.waitingTitle}>{name ? `Hang tight, ${name.split(' ')[0]}` : 'Hang tight'}</div>
@@ -169,10 +195,9 @@ function WaitingScreen({ onSignOut, name }) {
 
 // ── "We couldn't match your account to a client record" screen ──────────────
 function NotFoundScreen({ onSignOut }) {
-  const isMobile = useIsMobile()
   return (
-    <div style={styles.page(isMobile)}>
-      <div style={styles.card(isMobile)}>
+    <div style={styles.page}>
+      <div style={styles.card}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
@@ -191,7 +216,6 @@ function NotFoundScreen({ onSignOut }) {
 
 // ── Read-only plan view ───────────────────────────────────────────────────────
 function PlanView({ client, onSignOut }) {
-  const isMobile = useIsMobile()
   const { days, notes, glossary, strengthEnabled, strengthDays } = parsePlan(client.training_plan)
   const now = new Date()
   const dayKeys = Object.keys(days).filter(k => days[k] && (days[k].miles || days[k].pace || days[k].notes)).sort()
@@ -227,8 +251,8 @@ function PlanView({ client, onSignOut }) {
   })
 
   return (
-    <div style={styles.page(isMobile)}>
-      <div style={styles.wideCard(isMobile)}>
+    <div style={styles.page}>
+      <div style={styles.wideCard}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
@@ -237,31 +261,33 @@ function PlanView({ client, onSignOut }) {
         <h1 style={styles.title}>{client.name ? `${client.name.split(' ')[0]}'s training plan` : 'Your training plan'}</h1>
         <p style={styles.subtitle}>Your coach builds this month by month — check back as your race gets closer for upcoming weeks.</p>
 
-        <div style={styles.monthNav(isMobile)}>
+        <StravaConnect clientId={client.id} />
+
+        <div style={styles.monthNav}>
           <button style={styles.navBtn} onClick={() => changeMonth(-1)}>← Prev</button>
-          <span style={styles.monthLabel(isMobile)}>{fmtMonth(viewYear, viewMonth)}</span>
+          <span style={styles.monthLabel}>{fmtMonth(viewYear, viewMonth)}</span>
           <button style={styles.navBtn} onClick={() => changeMonth(1)}>Next →</button>
         </div>
 
         {monthHasData ? (
           <>
-            <div style={styles.calGrid(isMobile)}>
-              {DOW.map(d => <div key={d} style={styles.dayOfWeekHeader(isMobile)}>{isMobile ? d.slice(0, 1) : d}</div>)}
+            <div style={styles.calGrid}>
+              {DOW.map(d => <div key={d} style={styles.dayOfWeekHeader}>{d}</div>)}
               {calCells.map(cell => {
                 const day = days[cell.key] || {}
                 const isToday = cell.key === todayKey
                 return (
-                  <div key={cell.key} style={styles.calCell(isToday, cell.isCurrentMonth, isMobile)}>
-                    <div style={styles.calCellHeader(isToday, isMobile)}>{cell.date.getDate()}</div>
+                  <div key={cell.key} style={styles.calCell(isToday, cell.isCurrentMonth)}>
+                    <div style={styles.calCellHeader(isToday)}>{cell.date.getDate()}</div>
                     {cell.isCurrentMonth && (day.miles || day.pace || day.notes) && (
                       <>
                         {(day.miles || day.pace) && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            {day.miles ? <span style={styles.milesText(isMobile)}>{day.miles} mi</span> : null}
-                            {day.pace ? <span style={styles.paceBadge(day.pace, isMobile)}>{PACE_LABELS[day.pace] || day.pace}</span> : null}
+                            {day.miles ? <span style={styles.milesText}>{day.miles} mi</span> : null}
+                            {day.pace ? <span style={styles.paceBadge(day.pace)}>{PACE_LABELS[day.pace] || day.pace}</span> : null}
                           </div>
                         )}
-                        {day.notes ? <div style={styles.dayNotes(isMobile)}>{day.notes}</div> : null}
+                        {day.notes ? <div style={styles.dayNotes}>{day.notes}</div> : null}
                       </>
                     )}
                   </div>
@@ -272,8 +298,8 @@ function PlanView({ client, onSignOut }) {
             {weeklyTotals.length > 0 && (
               <div style={styles.weeklyTotals}>
                 {weeklyTotals.map((total, i) => (
-                  <div key={i} style={styles.weeklyTotalCard(isMobile)}>
-                    <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 500 }}>{total} mi</div>
+                  <div key={i} style={styles.weeklyTotalCard}>
+                    <div style={{ fontSize: 16, fontWeight: 500 }}>{total} mi</div>
                     <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.3px', marginTop: 2 }}>Week {i + 1}</div>
                   </div>
                 ))}
@@ -291,7 +317,7 @@ function PlanView({ client, onSignOut }) {
         {strengthEnabled && Object.values(strengthDays || {}).some(v => v && v.trim()) && (
           <div style={{ marginBottom: 20 }}>
             <div style={styles.sectionTitle}>Weekly strength plan — same every week</div>
-            <div style={styles.strengthGrid(isMobile)}>
+            <div style={styles.strengthGrid}>
               {DOW.map(d => (
                 <div key={d} style={styles.strengthCell}>
                   <div style={styles.strengthDayHeader}>{d}</div>
@@ -351,12 +377,23 @@ export default function ClientPortal() {
     let cancelled = false
     setClientLoading(true)
     setClientError(false)
-    supabase.from('clients').select('*').then(({ data, error }) => {
-      if (cancelled) return
-      setClientLoading(false)
-      if (error || !data || data.length === 0) setClientError(true)
-      else setClient(data[0])
-    })
+    // Only ever fetch the row matching the signed-in user's own email.
+    // Row Level Security on the `clients` table is the real security
+    // boundary (see supabase-setup.sql) — this filter is a belt-and-
+    // suspenders match so the portal can never show the wrong
+    // person's plan even if a policy is ever loosened by mistake.
+    supabase
+      .from('clients')
+      .select('*')
+      .ilike('email', session.user.email)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        setClientLoading(false)
+        if (error || !data || data.length === 0) setClientError(true)
+        else setClient(data[0])
+      })
     return () => { cancelled = true }
   }, [session])
 
@@ -377,7 +414,7 @@ export default function ClientPortal() {
 
   if (clientError || !client) return <NotFoundScreen onSignOut={signOut} />
 
-  if (!client.training_plan) return <WaitingScreen onSignOut={signOut} name={client.name} />
+  if (!client.training_plan) return <WaitingScreen onSignOut={signOut} name={client.name} clientId={client.id} />
 
   return <PlanView client={client} onSignOut={signOut} />
 }

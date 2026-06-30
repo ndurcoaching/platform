@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { buildMonthPlan } from '../lib/planBuilder'
 import { DEFAULT_GENERAL_PREFS, DEFAULT_RACE_PREFS, getMergedPrefs, RACE_LABELS } from '../lib/defaultPrefs'
 import { DOW, PACE_TYPES, PACE_LABELS, DEFAULT_GLOSSARY, toKey, buildCalendar, parsePlan, serializePlan } from '../lib/plan'
+import { weekBoundsContaining, computeWeekAdherence, mostRecentActivity, daysAgo, adjustPrefsForAdherence } from '../lib/strava'
 import { supabase } from '../supabase'
 
 const s = {
@@ -62,6 +63,16 @@ const s = {
   clientHeaderName: { fontSize: 19, fontWeight: 500, letterSpacing: '-0.5px', marginBottom: 2 },
   clientHeaderSub: { fontSize: 13, color: 'var(--text-2)' },
   card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '18px 22px', marginBottom: 14 },
+  weekStatsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 4 },
+  weekStatBox: { background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: '10px 14px' },
+  weekStatNum: { fontSize: 18, fontWeight: 500, lineHeight: 1.2 },
+  weekStatLabel: { fontSize: 11, color: 'var(--text-3)', marginTop: 2 },
+  connBadge: (connected) => ({
+    fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 999,
+    background: connected ? 'var(--green-bg)' : 'var(--amber-bg)',
+    color: connected ? 'var(--green-text)' : 'var(--amber-text)',
+  }),
+  adherenceNote: { fontSize: 12, color: 'var(--text-2)', marginTop: 10, lineHeight: 1.6 },
   cardTitleRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   cardTitle: { fontSize: 13, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.5px' },
   editToggleBtn: {
@@ -357,6 +368,8 @@ export default function Dashboard({ session }) {
   const [profileSavedMsg, setProfileSavedMsg] = useState(false)
   const [strengthEnabled, setStrengthEnabled] = useState(false)
   const [strengthDays, setStrengthDays] = useState({})
+  const [stravaActivities, setStravaActivities] = useState([])
+  const [stravaConnected, setStravaConnected] = useState(false)
 
   const viewYear  = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1).getFullYear()
   const viewMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1).getMonth()
@@ -391,6 +404,17 @@ export default function Dashboard({ session }) {
   }, [])
 
   useEffect(() => { fetchClients() }, [fetchClients])
+
+  useEffect(() => {
+    if (!selected) { setStravaActivities([]); setStravaConnected(false); return }
+    let cancelled = false
+    supabase.from('strava_activities').select('*').eq('client_id', selected.id)
+      .order('activity_date', { ascending: false }).limit(60)
+      .then(({ data }) => { if (!cancelled) setStravaActivities(data || []) })
+    supabase.from('strava_connections').select('client_id').eq('client_id', selected.id).maybeSingle()
+      .then(({ data }) => { if (!cancelled) setStravaConnected(!!data) })
+    return () => { cancelled = true }
+  }, [selected?.id])
 
   useEffect(() => {
     if (selected) {
@@ -470,7 +494,10 @@ export default function Dashboard({ session }) {
     const now = new Date()
     const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth()
     const raceType = selected.race_type || 'full'
-    const mergedPrefs = getMergedPrefs(generalPrefs, racePrefs, raceType)
+    let mergedPrefs = getMergedPrefs(generalPrefs, racePrefs, raceType)
+    if (lastWeekAdherence.complianceRate !== null) {
+      mergedPrefs = adjustPrefsForAdherence(mergedPrefs, lastWeekAdherence.complianceRate)
+    }
     const result = buildMonthPlan(selected, mergedPrefs, viewYear, viewMonth, isCurrentMonth)
     setDays(prev => ({ ...prev, ...result.days }))
     setNotes(result.notes)
@@ -490,6 +517,14 @@ export default function Dashboard({ session }) {
   async function signOut() { await supabase.auth.signOut() }
 
   const planCount = clients.filter(c => c.training_plan).length
+
+  const today = new Date()
+  const thisWeek = weekBoundsContaining(today)
+  const priorWeekRef = new Date(today); priorWeekRef.setDate(priorWeekRef.getDate() - 7)
+  const lastWeek = weekBoundsContaining(priorWeekRef)
+  const liveAdherence = computeWeekAdherence(days, stravaActivities, thisWeek.start, thisWeek.end)
+  const lastWeekAdherence = computeWeekAdherence(days, stravaActivities, lastWeek.start, lastWeek.end)
+  const lastActivity = mostRecentActivity(stravaActivities)
 
   return (
     <div style={s.layout}>
@@ -553,6 +588,45 @@ export default function Dashboard({ session }) {
                   <div style={s.clientHeaderName}>{selected.name}</div>
                   <div style={s.clientHeaderSub}>{selected.email}{selected.phone ? ` · ${selected.phone}` : ''}</div>
                 </div>
+              </div>
+
+              {/* Strava adherence card — live data, no waiting for a check-in */}
+              <div style={s.card}>
+                <div style={s.cardTitleRow}>
+                  <div style={s.cardTitle}>This week (live from Strava)</div>
+                  <span style={s.connBadge(stravaConnected)}>{stravaConnected ? '● Connected' : 'Not connected yet'}</span>
+                </div>
+                <div style={s.weekStatsRow}>
+                  <div style={s.weekStatBox}>
+                    <div style={s.weekStatNum}>{liveAdherence.actualMiles} mi</div>
+                    <div style={s.weekStatLabel}>
+                      {liveAdherence.plannedMiles > 0 ? `of ${liveAdherence.plannedMiles} mi planned` : 'run so far this week'}
+                    </div>
+                  </div>
+                  <div style={s.weekStatBox}>
+                    <div style={s.weekStatNum}>{liveAdherence.daysRun}{liveAdherence.daysPlanned > 0 ? ` / ${liveAdherence.daysPlanned}` : ''}</div>
+                    <div style={s.weekStatLabel}>days run this week</div>
+                  </div>
+                  <div style={s.weekStatBox}>
+                    <div style={s.weekStatNum}>
+                      {lastActivity ? (daysAgo(lastActivity.activity_date) === 0 ? 'Today' : `${daysAgo(lastActivity.activity_date)}d ago`) : '—'}
+                    </div>
+                    <div style={s.weekStatLabel}>{lastActivity ? `last run · ${lastActivity.distance_miles} mi` : 'no activity yet'}</div>
+                  </div>
+                </div>
+                {!stravaConnected && (
+                  <div style={s.adherenceNote}>This client hasn't connected Strava yet — they can do that from their training portal.</div>
+                )}
+                {stravaConnected && lastWeekAdherence.complianceRate !== null && (
+                  <div style={s.adherenceNote}>
+                    Last week: {lastWeekAdherence.actualMiles} of {lastWeekAdherence.plannedMiles} mi ({lastWeekAdherence.complianceRate}% compliance).{' '}
+                    {lastWeekAdherence.complianceRate < 60
+                      ? "Next month's mileage bump will be held flat to account for this."
+                      : lastWeekAdherence.complianceRate < 85
+                      ? "Next month's mileage bump will be reduced to account for this."
+                      : 'On track — the normal progression rate will apply.'}
+                  </div>
+                )}
               </div>
 
               {/* Profile Card */}
