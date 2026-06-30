@@ -58,6 +58,41 @@ const styles = {
   glossaryText: { fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 },
 }
 
+// ── Mobile responsiveness ──────────────────────────────────────────────────
+// The styles above are plain JS objects (not real CSS), so they can't use
+// @media queries directly. This injects a small stylesheet once and targets
+// a handful of className hooks added to the elements that actually break on
+// narrow screens (card padding, the Strava banner, the strength grid, the
+// month nav). Inline styles win over external CSS unless we use !important,
+// so the overrides below do.
+const RESPONSIVE_CSS = `
+  .cp-page, .cp-page * { box-sizing: border-box; }
+  @media (max-width: 640px) {
+    .cp-page { padding: 24px 12px 56px !important; }
+    .cp-card { padding: 28px 20px !important; }
+    .cp-wide-card { padding: 20px 14px !important; }
+    .cp-strava-banner { flex-direction: column; align-items: stretch; }
+    .cp-strava-banner a, .cp-strava-banner span { text-align: center; }
+    .cp-strength-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .cp-month-nav { flex-wrap: wrap; row-gap: 8px; justify-content: center; }
+    .cp-month-label { min-width: 0 !important; }
+    .cp-cal-grid { gap: 3px !important; }
+  }
+  @media (max-width: 380px) {
+    .cp-strength-grid { grid-template-columns: 1fr !important; }
+  }
+`
+
+function useInjectResponsiveStyles() {
+  useEffect(() => {
+    if (document.getElementById('cp-responsive-styles')) return
+    const tag = document.createElement('style')
+    tag.id = 'cp-responsive-styles'
+    tag.textContent = RESPONSIVE_CSS
+    document.head.appendChild(tag)
+  }, [])
+}
+
 function fmtMonth(year, month) {
   return new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
@@ -91,8 +126,8 @@ function AuthScreen() {
   }
 
   if (signedUp) return (
-    <div style={styles.page}>
-      <div style={styles.card}>
+    <div className="cp-page" style={styles.page}>
+      <div className="cp-card" style={styles.card}>
         <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
         <div style={styles.notice}>
           <strong>Check your email.</strong> We sent a confirmation link to {email}. Click it, then come back here and sign in.
@@ -105,8 +140,8 @@ function AuthScreen() {
   )
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
+    <div className="cp-page" style={styles.page}>
+      <div className="cp-card" style={styles.card}>
         <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
         <h1 style={styles.title}>Your training portal</h1>
         <p style={styles.subtitle}>Sign in to view your training plan. Use the same email you submitted on your intake form.</p>
@@ -159,7 +194,7 @@ function StravaConnect({ clientId }) {
     <>
       {flash === 'connected' && <div style={{ ...styles.notice, marginBottom: 16 }}>✓ Strava connected — your coach can now see your actual runs.</div>}
       {flash === 'error' && <div style={{ ...styles.error, marginBottom: 16, marginTop: 0 }}>Something went wrong connecting Strava. Please try again.</div>}
-      <div style={styles.stravaBanner}>
+      <div className="cp-strava-banner" style={styles.stravaBanner}>
         {connected ? (
           <span style={styles.stravaConnectedBadge}>● Connected to Strava</span>
         ) : (
@@ -176,8 +211,8 @@ function StravaConnect({ clientId }) {
 // ── "Your coach is still working on it" screen ────────────────────────────────
 function WaitingScreen({ onSignOut, name, clientId }) {
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
+    <div className="cp-page" style={styles.page}>
+      <div className="cp-card" style={styles.card}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
@@ -196,8 +231,8 @@ function WaitingScreen({ onSignOut, name, clientId }) {
 // ── "We couldn't match your account to a client record" screen ──────────────
 function NotFoundScreen({ onSignOut }) {
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
+    <div className="cp-page" style={styles.page}>
+      <div className="cp-card" style={styles.card}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
@@ -251,8 +286,8 @@ function PlanView({ client, onSignOut }) {
   })
 
   return (
-    <div style={styles.page}>
-      <div style={styles.wideCard}>
+    <div className="cp-page" style={styles.page}>
+      <div className="cp-wide-card" style={styles.wideCard}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
@@ -263,15 +298,15 @@ function PlanView({ client, onSignOut }) {
 
         <StravaConnect clientId={client.id} />
 
-        <div style={styles.monthNav}>
+        <div className="cp-month-nav" style={styles.monthNav}>
           <button style={styles.navBtn} onClick={() => changeMonth(-1)}>← Prev</button>
-          <span style={styles.monthLabel}>{fmtMonth(viewYear, viewMonth)}</span>
+          <span className="cp-month-label" style={styles.monthLabel}>{fmtMonth(viewYear, viewMonth)}</span>
           <button style={styles.navBtn} onClick={() => changeMonth(1)}>Next →</button>
         </div>
 
         {monthHasData ? (
           <>
-            <div style={styles.calGrid}>
+            <div className="cp-cal-grid" style={styles.calGrid}>
               {DOW.map(d => <div key={d} style={styles.dayOfWeekHeader}>{d}</div>)}
               {calCells.map(cell => {
                 const day = days[cell.key] || {}
@@ -317,7 +352,7 @@ function PlanView({ client, onSignOut }) {
         {strengthEnabled && Object.values(strengthDays || {}).some(v => v && v.trim()) && (
           <div style={{ marginBottom: 20 }}>
             <div style={styles.sectionTitle}>Weekly strength plan — same every week</div>
-            <div style={styles.strengthGrid}>
+            <div className="cp-strength-grid" style={styles.strengthGrid}>
               {DOW.map(d => (
                 <div key={d} style={styles.strengthCell}>
                   <div style={styles.strengthDayHeader}>{d}</div>
@@ -355,6 +390,7 @@ function PlanView({ client, onSignOut }) {
 
 // ── Top-level portal: figures out which screen to show ───────────────────────
 export default function ClientPortal() {
+  useInjectResponsiveStyles()
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [client, setClient] = useState(null)
