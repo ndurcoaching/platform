@@ -35,13 +35,20 @@ const styles = {
   monthNav: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, flexWrap: 'wrap', rowGap: 8, justifyContent: 'center' },
   navBtn: { fontSize: 13, color: 'var(--text-2)', padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' },
   monthLabel: { fontSize: 15, fontWeight: 500, minWidth: 0, textAlign: 'center' },
-  calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 20 },
-  dayOfWeekHeader: { fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: 'center', padding: '4px 0' },
-  calCell: (isToday, inMonth) => ({
-    minHeight: 76, borderRadius: 'var(--radius-sm)', border: isToday ? '1px solid var(--accent)' : '1px solid var(--border)',
-    background: inMonth ? 'var(--surface)' : 'var(--surface-2)', opacity: inMonth ? 1 : 0.45, padding: '5px 6px', display: 'flex', flexDirection: 'column', gap: 3,
+  weeksList: { marginBottom: 20 },
+  weekBlock: { marginBottom: 16 },
+  weekHeader: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.4px', padding: '6px 4px', borderBottom: '1px solid var(--border)', marginBottom: 2 },
+  weekHeaderTotal: { fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'none', letterSpacing: 0 },
+  dayRow: (isToday) => ({
+    display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 4px', borderBottom: '1px solid var(--border)',
+    background: isToday ? 'var(--surface-2)' : 'transparent', borderRadius: isToday ? 'var(--radius-sm)' : 0,
   }),
-  calCellHeader: (isToday) => ({ fontSize: 11, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--accent)' : 'var(--text-3)' }),
+  dayRowDate: { width: 40, flexShrink: 0, textAlign: 'center' },
+  dayRowDow: (isToday) => ({ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.3px', color: isToday ? 'var(--accent)' : 'var(--text-3)' }),
+  dayRowNum: (isToday) => ({ fontSize: 15, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--accent)' : 'var(--text)' }),
+  dayRowContent: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 2 },
+  dayRowMeta: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
+  dayRowRest: { fontSize: 12, color: 'var(--text-3)' },
   paceBadge: (pace) => ({ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px', padding: '1px 5px', borderRadius: 3, background: PACE_BG[pace] || 'var(--surface-2)', color: PACE_COLORS[pace] || 'var(--text-3)', display: 'inline-block', width: 'fit-content' }),
   milesText: { fontSize: 12, fontWeight: 500 },
   dayNotes: { fontSize: 10, color: 'var(--text-2)', lineHeight: 1.4, wordBreak: 'break-word' },
@@ -271,25 +278,40 @@ function PlanView({ client, onSignOut }) {
 
         {monthHasData ? (
           <>
-            <div style={styles.calGrid}>
-              {DOW.map(d => <div key={d} style={styles.dayOfWeekHeader}>{d}</div>)}
-              {calCells.map(cell => {
-                const day = days[cell.key] || {}
-                const isToday = cell.key === todayKey
+            <div style={styles.weeksList}>
+              {weeks.map((week, wi) => {
+                const weekDays = week.filter(c => c.isCurrentMonth)
+                if (weekDays.length === 0) return null
+                const weekTotal = Math.round(weekDays.reduce((sum, c) => sum + (Number(days[c.key]?.miles) || 0), 0) * 10) / 10
                 return (
-                  <div key={cell.key} style={styles.calCell(isToday, cell.isCurrentMonth)}>
-                    <div style={styles.calCellHeader(isToday)}>{cell.date.getDate()}</div>
-                    {cell.isCurrentMonth && (day.miles || day.pace || day.notes) && (
-                      <>
-                        {(day.miles || day.pace) && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            {day.miles ? <span style={styles.milesText}>{day.miles} mi</span> : null}
-                            {day.pace ? <span style={styles.paceBadge(day.pace)}>{PACE_LABELS[day.pace] || day.pace}</span> : null}
+                  <div key={wi} style={styles.weekBlock}>
+                    <div style={styles.weekHeader}>
+                      <span>Week {wi + 1}</span>
+                      {weekTotal > 0 && <span style={styles.weekHeaderTotal}>{weekTotal} mi</span>}
+                    </div>
+                    {weekDays.map(cell => {
+                      const day = days[cell.key] || {}
+                      const isToday = cell.key === todayKey
+                      const dowLabel = cell.date.toLocaleDateString('en-US', { weekday: 'short' })
+                      return (
+                        <div key={cell.key} style={styles.dayRow(isToday)}>
+                          <div style={styles.dayRowDate}>
+                            <div style={styles.dayRowDow(isToday)}>{dowLabel}</div>
+                            <div style={styles.dayRowNum(isToday)}>{cell.date.getDate()}</div>
                           </div>
-                        )}
-                        {day.notes ? <div style={styles.dayNotes}>{day.notes}</div> : null}
-                      </>
-                    )}
+                          <div style={styles.dayRowContent}>
+                            {(day.miles || day.pace) && (
+                              <div style={styles.dayRowMeta}>
+                                {day.miles ? <span style={styles.milesText}>{day.miles} mi</span> : null}
+                                {day.pace ? <span style={styles.paceBadge(day.pace)}>{PACE_LABELS[day.pace] || day.pace}</span> : null}
+                              </div>
+                            )}
+                            {day.notes ? <div style={styles.dayNotes}>{day.notes}</div> : null}
+                            {!(day.miles || day.pace || day.notes) && <div style={styles.dayRowRest}>Rest day</div>}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )
               })}
