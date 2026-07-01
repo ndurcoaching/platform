@@ -4,9 +4,9 @@ import { DOW, PACE_LABELS, PACE_COLORS, PACE_BG, DEFAULT_GLOSSARY, toKey, buildC
 import { getStravaConnectUrl } from '../lib/strava'
 
 const styles = {
-  page: { minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '48px 16px 80px' },
-  card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '40px', width: '100%', maxWidth: 420, boxShadow: 'var(--shadow)' },
-  wideCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '32px', width: '100%', maxWidth: 880, boxShadow: 'var(--shadow)' },
+  page: { minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px 56px', boxSizing: 'border-box' },
+  card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '28px 20px', width: '100%', maxWidth: 420, boxShadow: 'var(--shadow)', boxSizing: 'border-box' },
+  wideCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '20px 14px', width: '100%', maxWidth: 880, boxShadow: 'var(--shadow)', boxSizing: 'border-box' },
   logo: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 },
   logoMark: { width: 36, height: 36, borderRadius: 8, background: '#0a5fd4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-fg)', fontWeight: 500, fontSize: 15, letterSpacing: '-0.5px' },
   logoText: { fontSize: 16, fontWeight: 500, letterSpacing: '-0.3px' },
@@ -18,10 +18,10 @@ const styles = {
   ghostBtn: { width: '100%', padding: '11px 20px', background: 'var(--surface-2)', color: 'var(--text)', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, marginTop: 8, border: '1px solid var(--border)' },
   error: { background: 'var(--red-bg)', border: '1px solid #f0b8b8', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 13, color: 'var(--red-text)', marginTop: 12 },
   notice: { background: 'var(--green-bg)', border: '1px solid #b8dcb6', borderRadius: 'var(--radius-sm)', padding: '14px 16px', fontSize: 13, color: 'var(--green-text)', marginTop: 4, lineHeight: 1.6 },
-  stravaBanner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 20 },
-  stravaText: { fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 },
-  stravaBtn: { flexShrink: 0, padding: '8px 14px', background: '#fc4c02', color: '#fff', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap' },
-  stravaConnectedBadge: { flexShrink: 0, fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 999, background: 'var(--green-bg)', color: 'var(--green-text)' },
+  stravaBanner: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 20 },
+  stravaText: { fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, textAlign: 'center' },
+  stravaBtn: { flexShrink: 0, padding: '8px 14px', background: '#fc4c02', color: '#fff', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, textDecoration: 'none', textAlign: 'center' },
+  stravaConnectedBadge: { flexShrink: 0, fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 999, background: 'var(--green-bg)', color: 'var(--green-text)', textAlign: 'center', alignSelf: 'center' },
   toggleRow: { display: 'flex', gap: 4, background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: 3, marginBottom: 24 },
   toggleBtn: (active) => ({ flex: 1, padding: '8px 12px', borderRadius: 5, fontSize: 13, fontWeight: 500, background: active ? 'var(--surface)' : 'transparent', color: active ? 'var(--text)' : 'var(--text-3)', boxShadow: active ? 'var(--shadow)' : 'none' }),
   backLink: { textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--text-3)' },
@@ -32,10 +32,10 @@ const styles = {
   waitingTitle: { fontSize: 18, fontWeight: 500, marginBottom: 8 },
   waitingText: { fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, maxWidth: 420, margin: '0 auto' },
   monthNotReady: { textAlign: 'center', padding: '40px 20px', background: 'var(--surface-2)', borderRadius: 'var(--radius)', marginBottom: 20 },
-  monthNav: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 },
+  monthNav: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, flexWrap: 'wrap', rowGap: 8, justifyContent: 'center' },
   navBtn: { fontSize: 13, color: 'var(--text-2)', padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' },
-  monthLabel: { fontSize: 15, fontWeight: 500, minWidth: 140, textAlign: 'center' },
-  calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 20 },
+  monthLabel: { fontSize: 15, fontWeight: 500, minWidth: 0, textAlign: 'center' },
+  calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 20 },
   dayOfWeekHeader: { fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: 'center', padding: '4px 0' },
   calCell: (isToday, inMonth) => ({
     minHeight: 76, borderRadius: 'var(--radius-sm)', border: isToday ? '1px solid var(--accent)' : '1px solid var(--border)',
@@ -48,7 +48,7 @@ const styles = {
   sectionTitle: { fontSize: 12, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 },
   weeklyTotals: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 },
   weeklyTotalCard: { flex: 1, minWidth: 100, background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', textAlign: 'center' },
-  strengthGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 20 },
+  strengthGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 20 },
   strengthCell: { border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px', minHeight: 60 },
   strengthDayHeader: { fontSize: 10, fontWeight: 600, color: 'var(--text-3)', marginBottom: 4 },
   strengthText: { fontSize: 11, color: 'var(--text-2)', lineHeight: 1.4, whiteSpace: 'pre-wrap' },
@@ -56,41 +56,6 @@ const styles = {
   glossaryRow: { display: 'flex', gap: 10, marginBottom: 8 },
   glossaryDot: (pace) => ({ width: 8, height: 8, borderRadius: 4, background: PACE_COLORS[pace], flexShrink: 0, marginTop: 5 }),
   glossaryText: { fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 },
-}
-
-// ── Mobile responsiveness ──────────────────────────────────────────────────
-// The styles above are plain JS objects (not real CSS), so they can't use
-// @media queries directly. This injects a small stylesheet once and targets
-// a handful of className hooks added to the elements that actually break on
-// narrow screens (card padding, the Strava banner, the strength grid, the
-// month nav). Inline styles win over external CSS unless we use !important,
-// so the overrides below do.
-const RESPONSIVE_CSS = `
-  .cp-page, .cp-page * { box-sizing: border-box; }
-  @media (max-width: 640px) {
-    .cp-page { padding: 24px 12px 56px !important; }
-    .cp-card { padding: 28px 20px !important; }
-    .cp-wide-card { padding: 20px 14px !important; }
-    .cp-strava-banner { flex-direction: column; align-items: stretch; }
-    .cp-strava-banner a, .cp-strava-banner span { text-align: center; }
-    .cp-strength-grid { grid-template-columns: repeat(2, 1fr) !important; }
-    .cp-month-nav { flex-wrap: wrap; row-gap: 8px; justify-content: center; }
-    .cp-month-label { min-width: 0 !important; }
-    .cp-cal-grid { gap: 3px !important; }
-  }
-  @media (max-width: 380px) {
-    .cp-strength-grid { grid-template-columns: 1fr !important; }
-  }
-`
-
-function useInjectResponsiveStyles() {
-  useEffect(() => {
-    if (document.getElementById('cp-responsive-styles')) return
-    const tag = document.createElement('style')
-    tag.id = 'cp-responsive-styles'
-    tag.textContent = RESPONSIVE_CSS
-    document.head.appendChild(tag)
-  }, [])
 }
 
 function fmtMonth(year, month) {
@@ -126,8 +91,8 @@ function AuthScreen() {
   }
 
   if (signedUp) return (
-    <div className="cp-page" style={styles.page}>
-      <div className="cp-card" style={styles.card}>
+    <div style={styles.page}>
+      <div style={styles.card}>
         <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
         <div style={styles.notice}>
           <strong>Check your email.</strong> We sent a confirmation link to {email}. Click it, then come back here and sign in.
@@ -140,8 +105,8 @@ function AuthScreen() {
   )
 
   return (
-    <div className="cp-page" style={styles.page}>
-      <div className="cp-card" style={styles.card}>
+    <div style={styles.page}>
+      <div style={styles.card}>
         <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
         <h1 style={styles.title}>Your training portal</h1>
         <p style={styles.subtitle}>Sign in to view your training plan. Use the same email you submitted on your intake form.</p>
@@ -194,7 +159,7 @@ function StravaConnect({ clientId }) {
     <>
       {flash === 'connected' && <div style={{ ...styles.notice, marginBottom: 16 }}>✓ Strava connected — your coach can now see your actual runs.</div>}
       {flash === 'error' && <div style={{ ...styles.error, marginBottom: 16, marginTop: 0 }}>Something went wrong connecting Strava. Please try again.</div>}
-      <div className="cp-strava-banner" style={styles.stravaBanner}>
+      <div style={styles.stravaBanner}>
         {connected ? (
           <span style={styles.stravaConnectedBadge}>● Connected to Strava</span>
         ) : (
@@ -211,8 +176,8 @@ function StravaConnect({ clientId }) {
 // ── "Your coach is still working on it" screen ────────────────────────────────
 function WaitingScreen({ onSignOut, name, clientId }) {
   return (
-    <div className="cp-page" style={styles.page}>
-      <div className="cp-card" style={styles.card}>
+    <div style={styles.page}>
+      <div style={styles.card}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
@@ -231,8 +196,8 @@ function WaitingScreen({ onSignOut, name, clientId }) {
 // ── "We couldn't match your account to a client record" screen ──────────────
 function NotFoundScreen({ onSignOut }) {
   return (
-    <div className="cp-page" style={styles.page}>
-      <div className="cp-card" style={styles.card}>
+    <div style={styles.page}>
+      <div style={styles.card}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
@@ -286,8 +251,8 @@ function PlanView({ client, onSignOut }) {
   })
 
   return (
-    <div className="cp-page" style={styles.page}>
-      <div className="cp-wide-card" style={styles.wideCard}>
+    <div style={styles.page}>
+      <div style={styles.wideCard}>
         <div style={styles.topbar}>
           <div style={styles.logo}><div style={styles.logoMark}>N</div><span style={styles.logoText}>Ndur</span></div>
           <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
@@ -298,15 +263,15 @@ function PlanView({ client, onSignOut }) {
 
         <StravaConnect clientId={client.id} />
 
-        <div className="cp-month-nav" style={styles.monthNav}>
+        <div style={styles.monthNav}>
           <button style={styles.navBtn} onClick={() => changeMonth(-1)}>← Prev</button>
-          <span className="cp-month-label" style={styles.monthLabel}>{fmtMonth(viewYear, viewMonth)}</span>
+          <span style={styles.monthLabel}>{fmtMonth(viewYear, viewMonth)}</span>
           <button style={styles.navBtn} onClick={() => changeMonth(1)}>Next →</button>
         </div>
 
         {monthHasData ? (
           <>
-            <div className="cp-cal-grid" style={styles.calGrid}>
+            <div style={styles.calGrid}>
               {DOW.map(d => <div key={d} style={styles.dayOfWeekHeader}>{d}</div>)}
               {calCells.map(cell => {
                 const day = days[cell.key] || {}
@@ -352,7 +317,7 @@ function PlanView({ client, onSignOut }) {
         {strengthEnabled && Object.values(strengthDays || {}).some(v => v && v.trim()) && (
           <div style={{ marginBottom: 20 }}>
             <div style={styles.sectionTitle}>Weekly strength plan — same every week</div>
-            <div className="cp-strength-grid" style={styles.strengthGrid}>
+            <div style={styles.strengthGrid}>
               {DOW.map(d => (
                 <div key={d} style={styles.strengthCell}>
                   <div style={styles.strengthDayHeader}>{d}</div>
@@ -390,7 +355,6 @@ function PlanView({ client, onSignOut }) {
 
 // ── Top-level portal: figures out which screen to show ───────────────────────
 export default function ClientPortal() {
-  useInjectResponsiveStyles()
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [client, setClient] = useState(null)
