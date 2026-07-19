@@ -1,8 +1,9 @@
 // One-off diagnostic script — NOT an API route.
-// Run manually with: node strava-diagnose.js
+// Run manually with: npm run diagnose
 // Checks every stored Strava connection and reports which clients have
 // scope problems, expired/dead tokens, or zero activities coming back.
 
+import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseAdmin = createClient(
