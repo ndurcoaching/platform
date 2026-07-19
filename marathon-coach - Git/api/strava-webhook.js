@@ -46,8 +46,9 @@ export default async (req) => {
   // Activity create/update events (POST). Strava expects a 200 within 2
   // seconds no matter what, so we always return ok at the end — errors are
   // swallowed rather than retried into a backlog.
+  let event = null
   try {
-    const event = await req.json()
+    event = await req.json()
 
     if (event.object_type === 'activity' && ['create', 'update'].includes(event.aggregate_type)) {
       const { data: connection } = await supabaseAdmin
@@ -66,9 +67,12 @@ export default async (req) => {
         // Only running activities matter for a marathon training plan.
         // Drop this check if you ever want to ingest rides/swims too.
         if (activity.type === 'Run' || activity.sport_type === 'Run') {
-          await supabaseAdmin.from('strava_activities').upsert(
+          const { error: upsertError } = await supabaseAdmin.from('strava_activities').upsert(
             {
-              strava_activity_id: activity.id,
+              // String() to match strava-sync.js — keeping the type
+              // consistent avoids upserts silently not matching existing
+              // rows on the strava_activity_id conflict key.
+              strava_activity_id: String(activity.id),
               client_id: connection.client_id,
               activity_date: (activity.start_date_local || activity.start_date || '').slice(0, 10),
               distance_miles: Math.round((activity.distance / METERS_PER_MILE) * 100) / 100,
@@ -78,11 +82,25 @@ export default async (req) => {
             },
             { onConflict: 'strava_activity_id' }
           )
+          if (upsertError) throw upsertError
         }
       }
     }
   } catch (err) {
+    // Strava requires a 200 no matter what, so failures here never retry —
+    // they just vanish unless we log them somewhere we'll actually see.
+    // console.error alone gets lost in provider logs; this makes failed
+    // syncs queryable per-client instead of relying on log-tailing.
     console.error('strava-webhook error', err)
+    try {
+      await supabaseAdmin.from('strava_sync_failures').insert({
+        source: 'webhook',
+        error_message: err?.message || String(err),
+        raw_event: JSON.stringify(event),
+      })
+    } catch (logErr) {
+      console.error('strava-webhook: failed to log sync failure', logErr)
+    }
   }
 
   return Response.json({ status: 'ok' })

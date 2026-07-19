@@ -11,11 +11,20 @@ export default async (req) => {
 
   const { data } = await supabaseAdmin
     .from('strava_connections')
-    .select('connected_at')
+    .select('connected_at, scope')
     .eq('client_id', clientId)
     .maybeSingle()
 
-  return Response.json({ connected: !!data, connected_at: data?.connected_at || null })
+  const hasFullAccess = !!data?.scope && data.scope.split(',').includes('activity:read_all')
+
+  return Response.json({
+    connected: !!data,
+    connected_at: data?.connected_at || null,
+    // Lets the portal warn "connected, but private activities are hidden"
+    // instead of just showing a green checkmark that isn't telling the
+    // whole story.
+    full_access: !!data && hasFullAccess,
+  })
 }
 
 export const config = { runtime: 'edge' }
