@@ -14,12 +14,7 @@ export default async (req) => {
     client_id: process.env.STRAVA_CLIENT_ID,
     redirect_uri: redirectUri,
     response_type: 'code',
-    // 'force' guarantees the client sees the consent checkboxes every time.
-    // With 'auto', if they have ANY prior authorization for this app (even
-    // a partial/old one), Strava skips the screen and silently reuses
-    // whatever scope was granted before — which is how clients end up
-    // "connected" but only ever granting public-activity access.
-    approval_prompt: 'force',
+    approval_prompt: 'auto',
     scope: 'activity:read_all',
     state: clientId,
   })

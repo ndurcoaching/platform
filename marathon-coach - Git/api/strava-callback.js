@@ -34,21 +34,11 @@ export default async (req) => {
     return Response.redirect(`${portalUrl}?strava=error&reason=token`, 302)
   }
  
-  const { access_token, refresh_token, expires_at, athlete, scope } = tokenData
+  const { access_token, refresh_token, expires_at, athlete } = tokenData
  
   if (!athlete?.id) {
     console.error('strava-callback: token response missing athlete', tokenData)
     return Response.redirect(`${portalUrl}?strava=error&reason=athlete`, 302)
-  }
- 
-  // Strava's consent screen lets the client uncheck "view private activities."
-  // If they do, the token exchange still succeeds and we'd otherwise store
-  // a connection that looks fine but silently only ever returns public
-  // activities. Catch that here instead of finding out via empty syncs.
-  const grantedScopes = (scope || '').split(',')
-  if (!grantedScopes.includes('activity:read_all')) {
-    console.error('strava-callback: client granted insufficient scope', { clientId, scope })
-    return Response.redirect(`${portalUrl}?strava=error&reason=scope`, 302)
   }
  
   const { error: dbError } = await supabaseAdmin
@@ -60,8 +50,6 @@ export default async (req) => {
         access_token,
         refresh_token,
         expires_at,
-        scope,
-        connected_at: new Date().toISOString(),
       },
       { onConflict: 'client_id' }
     )
