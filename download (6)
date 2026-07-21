@@ -1,3 +1,0 @@
-0000000000000000000000000000000000000000 1147a78d2542491abf44f8ffd41b7dd143c2b63c root <root@vm.(none)> 1784668316 +0000	clone: from https://github.com/ndurcoaching/platform.git
-1147a78d2542491abf44f8ffd41b7dd143c2b63c 1147a78d2542491abf44f8ffd41b7dd143c2b63c root <root@vm.(none)> 1784668511 +0000	checkout: moving from main to task-1-repo-restructure-hygiene
-1147a78d2542491abf44f8ffd41b7dd143c2b63c 8f644c5956308f6756d44312dac25073704c4c96 Claude <claude@anthropic.com> 1784668604 +0000	commit: Task 1: repo restructure & hygiene
