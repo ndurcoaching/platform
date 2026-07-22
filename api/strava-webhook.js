@@ -43,13 +43,13 @@ export default async (req) => {
     return new Response('Forbidden', { status: 403 })
   }
 
-  // Activity create/update events (POST). Strava expects a 200 within 2
-  // seconds no matter what, so we always return ok at the end — errors are
-  // swallowed rather than retried into a backlog.
+  // Activity create/update/delete + athlete deauth events (POST). Strava
+  // expects a 200 within 2 seconds no matter what, so we always return ok
+  // at the end — errors are swallowed rather than retried into a backlog.
   try {
     const event = await req.json()
 
-    if (event.object_type === 'activity' && ['create', 'update'].includes(event.aggregate_type)) {
+    if (event.object_type === 'activity' && ['create', 'update'].includes(event.aspect_type)) {
       const { data: connection } = await supabaseAdmin
         .from('strava_connections')
         .select('*')
@@ -80,6 +80,10 @@ export default async (req) => {
           )
         }
       }
+    } else if (event.object_type === 'activity' && event.aspect_type === 'delete') {
+      await supabaseAdmin.from('strava_activities').delete().eq('strava_activity_id', event.object_id)
+    } else if (event.object_type === 'athlete' && event.updates?.authorized === 'false') {
+      await supabaseAdmin.from('strava_connections').delete().eq('strava_athlete_id', event.owner_id)
     }
   } catch (err) {
     console.error('strava-webhook error', err)
